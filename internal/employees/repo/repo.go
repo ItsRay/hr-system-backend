@@ -15,7 +15,7 @@ import (
 type EmployeeRepo interface {
 	Create(ctx context.Context, employee *domain.Employee) error
 	GetEmployeeByID(ctx context.Context, id int) (domain.Employee, error)
-	GetEmployees(ctx context.Context, page, pageSize int) (employees []domain.Employee, totalCount int64, err error)
+	GetEmployees(ctx context.Context, page, pageSize int) (employees []domain.Employee, totalCount int, err error)
 }
 
 type Employee struct {
@@ -148,15 +148,16 @@ func (r *employeeRepo) GetEmployeeByID(ctx context.Context, id int) (domain.Empl
 	return toDomainEmployee(&employee), nil
 }
 
-func (r *employeeRepo) GetEmployees(ctx context.Context, page, pageSize int) ([]domain.Employee, int64, error) {
+func (r *employeeRepo) GetEmployees(ctx context.Context, page, pageSize int) ([]domain.Employee, int, error) {
 	var employeeModels []Employee
 
 	offset := (page - 1) * pageSize
 
-	var totalCount int64
-	if err := r.db.WithContext(ctx).Model(&Employee{}).Count(&totalCount).Error; err != nil {
+	var totalCountInt64 int64
+	if err := r.db.WithContext(ctx).Model(&Employee{}).Count(&totalCountInt64).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to count employees: %w", err)
 	}
+	totalCount := int(totalCountInt64)
 
 	err := preloadPositions(r.db.WithContext(ctx)).Find(&employeeModels).Limit(pageSize).Offset(offset).Error
 	if err != nil {

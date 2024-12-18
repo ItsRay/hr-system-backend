@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -16,28 +17,32 @@ func NewLogger() *Logger {
 	}
 }
 
-func (l *Logger) Info(v ...interface{}) {
+func (l *Logger) Infof(format string, v ...interface{}) {
 	l.Logger.SetPrefix("[INFO] ")
-	l.Logger.Println(v...)
+	message := fmt.Sprintf(format, v...)
+	l.Logger.Println(message)
 }
 
-func (l *Logger) Warn(v ...interface{}) {
+func (l *Logger) Warnf(format string, v ...interface{}) {
 	l.Logger.SetPrefix("[WARN] ")
-	l.Logger.Println(v...)
+	message := fmt.Sprintf(format, v...)
+	l.Logger.Println(message)
 }
 
-func (l *Logger) Error(v ...interface{}) {
+func (l *Logger) Errorf(format string, v ...interface{}) {
 	l.Logger.SetPrefix("[ERROR] ")
-	l.Logger.Println(v...)
+	message := fmt.Sprintf(format, v...)
+	l.Logger.Println(message)
 }
 
-func (l *Logger) Fatal(v ...interface{}) {
+func (l *Logger) Fatalf(format string, v ...interface{}) {
 	l.Logger.SetPrefix("[FATAL] ")
-	l.Logger.Println(v...)
+	message := fmt.Sprintf(format, v...)
+	l.Logger.Println(message)
 	os.Exit(1)
 }
 
 func (l *Logger) TimeTrack(start time.Time, name string) {
 	duration := time.Since(start)
-	l.Info(name, "took", duration)
+	l.Infof(name, "took", duration)
 }

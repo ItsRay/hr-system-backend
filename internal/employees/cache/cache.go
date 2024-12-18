@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"hr-system/internal/cache"
+	"hr-system/internal/common"
 	"hr-system/internal/employees/domain"
 )
 
@@ -15,8 +16,8 @@ type EmployeeCache interface {
 	GetEmployeeByID(ctx context.Context, id int) (domain.Employee, error)
 	SetEmployeeToCache(ctx context.Context, employee *domain.Employee, expiration time.Duration) error
 	DeleteEmployeeCache(ctx context.Context, id int) error
-	GetEmployees(ctx context.Context, page, pageSize int) ([]domain.Employee, error)
-	SetEmployeesToCache(ctx context.Context, employees []domain.Employee, page, pageSize int, expiration time.Duration) error
+	GetEmployees(ctx context.Context, page, pageSize int) (employees []domain.Employee, totalCount int, er error)
+	SetEmployeesToCache(ctx context.Context, page, pageSize int, employees []domain.Employee, totalCount int, expiration time.Duration) error
 	DeleteEmployeesCache(ctx context.Context, page, pageSize int) error
 }
 
@@ -44,7 +45,7 @@ func (e *employeeCache) GetEmployeeByID(ctx context.Context, id int) (domain.Emp
 	}
 
 	if data == "" {
-		return domain.Employee{}, nil
+		return domain.Employee{}, common.ErrResourceNotFound
 	}
 
 	var employee domain.Employee
@@ -77,32 +78,46 @@ func (e *employeeCache) genEmployeesListCacheKey(prefix string, page, pageSize i
 	return fmt.Sprintf("%s_list_page_%d_page_size_%d", prefix, page, pageSize)
 }
 
-func (e *employeeCache) GetEmployees(ctx context.Context, page, pageSize int) ([]domain.Employee, error) {
+type EmployeesCacheData struct {
+	Employees  []domain.Employee `json:"employees"`
+	TotalCount int               `json:"total_count"`
+}
+
+func (e *employeeCache) GetEmployees(ctx context.Context, page, pageSize int) ([]domain.Employee, int, error) {
 	cacheKey := e.genEmployeesListCacheKey(e.prefix, page, pageSize)
 	data, err := e.cache.Get(ctx, cacheKey)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	if data == "" {
-		return nil, nil
+		return nil, 0, common.ErrResourceNotFound
 	}
 
-	var employees []domain.Employee
+	var employees EmployeesCacheData
 	err = json.Unmarshal([]byte(data), &employees)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return employees, nil
+	return employees.Employees, employees.TotalCount, nil
 }
 
-func (e *employeeCache) SetEmployeesToCache(ctx context.Context, employees []domain.Employee, page, pageSize int, expiration time.Duration) error {
+func (e *employeeCache) SetEmployeesToCache(ctx context.Context, page, pageSize int, employees []domain.Employee,
+	totalCount int, expiration time.Duration) error {
+
+	cacheData := EmployeesCacheData{
+		Employees:  employees,
+		TotalCount: totalCount,
+	}
+
 	cacheKey := e.genEmployeesListCacheKey(e.prefix, page, pageSize)
-	jsonData, err := json.Marshal(employees)
+
+	jsonData, err := json.Marshal(cacheData)
 	if err != nil {
 		return err
 	}
+
 	return e.cache.Set(ctx, cacheKey, string(jsonData), expiration)
 }
 

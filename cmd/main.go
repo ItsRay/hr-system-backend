@@ -13,12 +13,16 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"hr-system/config"
+	"hr-system/internal/cache"
 	"hr-system/internal/common"
+	employee_cache "hr-system/internal/employees/cache"
 	"hr-system/internal/employees/handler"
 	"hr-system/internal/employees/repo"
 	"hr-system/internal/employees/service"
 	"hr-system/internal/middleware"
 )
+
+var cachePrefixEmployee = "employee"
 
 func main() {
 	cfg, err := config.LoadConfig()
@@ -47,13 +51,15 @@ func main() {
 		log.Fatalf("Failed to connect to Redis: %v", err)
 	}
 	fmt.Println("Connected to Redis successfully!")
+	commonCache := cache.NewCache(rdb)
 
 	employeeRepo, err := repo.NewEmployeeRepo(db)
 	if err != nil {
 		logger.Fatalf("Failed to New EmployeeRepo, cause: %v", err)
 	}
 
-	employeeService := service.NewEmployeeService(employeeRepo)
+	employeeService := service.NewEmployeeService(logger, employeeRepo,
+		employee_cache.NewEmployeeCache(commonCache, cachePrefixEmployee))
 	employeeHandler := handler.NewEmployeeHandler(logger, employeeService)
 
 	r := gin.Default()
@@ -63,5 +69,5 @@ func main() {
 	r.GET("api/v1/employees/:id", employeeHandler.GetEmployeeByID)
 	r.GET("api/v1/employees", employeeHandler.GetEmployees)
 
-	logger.Fatal(r.Run(fmt.Sprintf(":%s", cfg.RestServerPort)))
+	logger.Fatalf(r.Run(fmt.Sprintf(":%s", cfg.RestServerPort)).Error())
 }

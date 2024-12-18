@@ -60,13 +60,13 @@ func (h *EmployeeHandler) CreateEmployee(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, middleware.CreateErrResp("invalid request body, cause: %s", err))
 		return
 	}
-	h.logger.Info("create employee request: %+v", req)
+	h.logger.Infof("create employee request: %+v", req)
 
 	if err := h.validate.Struct(req); err != nil {
 		c.JSON(http.StatusBadRequest, middleware.CreateErrResp("invalid request body, cause: %s", err))
 		return
 	}
-	h.logger.Info("CreateEmployee pass validate: %+v", req)
+	h.logger.Infof("CreateEmployee pass validate: %+v", req)
 
 	employee, err := h.service.CreateEmployee(ctx, &domain.Employee{
 		Name:        req.Name,
@@ -132,7 +132,7 @@ func (h *EmployeeHandler) GetEmployees(c *gin.Context) {
 		return
 	}
 	// 設置響應頭
-	c.Header("X-Total-Count", strconv.Itoa(int(totalCount)))
+	c.Header("X-Total-Count", strconv.Itoa(totalCount))
 	c.Header("X-Page", strconv.Itoa(page))
 	c.Header("X-Page-Size", strconv.Itoa(pageSize))
 
