@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"hr-system/internal/common"
+	employee_repo "hr-system/internal/employees/repo"
 	"hr-system/internal/leaves/domain"
 )
 
@@ -22,23 +23,29 @@ type leaveRepo struct {
 	db *gorm.DB
 }
 
-func NewLeaveRepo(db *gorm.DB) (LeaveRepo, error) {
+func NewLeaveRepo(ctx context.Context, db *gorm.DB, employeeRepo employee_repo.EmployeeRepo) (LeaveRepo, error) {
 	repo := &leaveRepo{
 		db: db,
 	}
 
-	if err := repo.ensureSchema(); err != nil {
+	if err := repo.ensureSchemaAndSeedData(ctx, employeeRepo); err != nil {
 		return nil, err
 	}
 
 	return repo, nil
 }
 
-func (r *leaveRepo) ensureSchema() error {
+func (r *leaveRepo) ensureSchemaAndSeedData(ctx context.Context, employeeRepo employee_repo.EmployeeRepo) error {
+	// migrate
 	if err := r.db.AutoMigrate(domain.Leave{}); err != nil {
 		return err
 	}
 	if err := r.db.AutoMigrate(domain.LeaveReview{}); err != nil {
+		return err
+	}
+
+	// seed
+	if err := r.SeedLeaveData(ctx, employeeRepo); err != nil {
 		return err
 	}
 	return nil

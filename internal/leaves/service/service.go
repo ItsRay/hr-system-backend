@@ -162,6 +162,7 @@ func (s *leaveService) ReviewLeave(ctx context.Context, leaveID int, reviewerID 
 				return fmt.Errorf("unexpected error: reviewer does not have a manager")
 			}
 			updateReviews = append(updateReviews, domain.LeaveReview{
+				LeaveID:    leaveID,
 				ReviewerID: *reviewer.ManagerID,
 				Status:     domain.ReviewStatusReviewing,
 			})

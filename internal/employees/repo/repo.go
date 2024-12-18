@@ -46,25 +46,32 @@ type employeeRepo struct {
 	db *gorm.DB
 }
 
-func NewEmployeeRepo(db *gorm.DB) (EmployeeRepo, error) {
+func NewEmployeeRepo(ctx context.Context, db *gorm.DB) (EmployeeRepo, error) {
 	repo := &employeeRepo{
 		db: db,
 	}
 
-	if err := repo.ensureSchema(); err != nil {
+	if err := repo.ensureSchemaAndSeed(ctx); err != nil {
 		return nil, err
 	}
 
 	return repo, nil
 }
 
-func (r *employeeRepo) ensureSchema() error {
+func (r *employeeRepo) ensureSchemaAndSeed(ctx context.Context) error {
+	// AutoMigrate
 	if err := r.db.AutoMigrate(Employee{}); err != nil {
 		return err
 	}
 	if err := r.db.AutoMigrate(Position{}); err != nil {
 		return err
 	}
+
+	// Seed Data
+	if err := r.SeedEmployees(ctx); err != nil {
+		return err
+	}
+
 	return nil
 }
 

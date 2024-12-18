@@ -30,13 +30,13 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: app_db
-    volumes:
-      - mysql-data:/var/lib/mysql
+#    volumes:
+#      - mysql-data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 1s
+      interval: 2s
       retries: 15
-      start_period: 1s
+      start_period: 2s
       timeout: 1s
 
   redis:
@@ -45,5 +45,5 @@ services:
     ports:
       - "6379:6379"
 
-volumes:
-  mysql-data:
+#volumes:
+#  mysql-data:
