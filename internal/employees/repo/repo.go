@@ -1,18 +1,21 @@
 package repo
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
 
+	"hr-system/internal/common"
 	"hr-system/internal/employees/domain"
 )
 
 type EmployeeRepo interface {
-	Create(employee *domain.Employee) error
-	GetEmployeeByID(id int) (domain.Employee, error)
-	GetEmployees() ([]domain.Employee, error)
+	Create(ctx context.Context, employee *domain.Employee) error
+	GetEmployeeByID(ctx context.Context, id int) (domain.Employee, error)
+	GetEmployees(ctx context.Context, page, pageSize int) (employees []domain.Employee, totalCount int64, err error)
 }
 
 type Employee struct {
@@ -25,16 +28,16 @@ type Employee struct {
 }
 
 type Position struct {
-	ID           int       `gorm:"primaryKey;autoIncrement"`
-	EmployeeID   int       `gorm:"index"`
-	Title        string    `gorm:"type:varchar(255)"`
-	Level        string    `gorm:"type:varchar(50)"`
-	ManagerLevel int       `gorm:"type:int;default:0"`
-	MonthSalary  float64   `gorm:"type:decimal(10,2);not null"`
-	StartDate    time.Time `gorm:"type:date;not null"`
-	EndDate      time.Time `gorm:"type:date"`
-	CreatedAt    time.Time `gorm:"autoCreateTime"`
-	UpdatedAt    time.Time `gorm:"autoUpdateTime"`
+	ID           int        `gorm:"primaryKey;autoIncrement"`
+	EmployeeID   int        `gorm:"index"`
+	Title        string     `gorm:"type:varchar(255)"`
+	Level        string     `gorm:"type:varchar(50)"`
+	ManagerLevel int        `gorm:"type:int;default:0"`
+	MonthSalary  float64    `gorm:"type:decimal(10,2);not null"`
+	StartDate    time.Time  `gorm:"type:date;not null"`
+	EndDate      *time.Time `gorm:"type:date"`
+	CreatedAt    time.Time  `gorm:"autoCreateTime"`
+	UpdatedAt    time.Time  `gorm:"autoUpdateTime"`
 }
 
 type employeeRepo struct {
@@ -63,7 +66,13 @@ func NewEmployeeRepo(db *gorm.DB) (EmployeeRepo, error) {
 }
 
 func (r *employeeRepo) ensureSchema() error {
-	return r.db.AutoMigrate(Employee{})
+	if err := r.db.AutoMigrate(Employee{}); err != nil {
+		return err
+	}
+	if err := r.db.AutoMigrate(Position{}); err != nil {
+		return err
+	}
+	return nil
 }
 
 func toRepoPosition(employeeID int, p *domain.Position) Position {
@@ -77,31 +86,20 @@ func toRepoPosition(employeeID int, p *domain.Position) Position {
 	}
 }
 
-func (r *employeeRepo) Create(e *domain.Employee) error {
-	tx := r.db.Begin()
-
+func (r *employeeRepo) Create(ctx context.Context, e *domain.Employee) error {
+	positions := make([]Position, 0, len(e.Positions))
+	for i := range e.Positions {
+		positions = append(positions, toRepoPosition(0, &e.Positions[i]))
+	}
 	employee := &Employee{
 		Name:        e.Name,
 		Email:       e.Email,
 		Address:     e.Address,
 		PhoneNumber: e.PhoneNumber,
-		// TODO: Check if this works
-		Positions: []Position{toRepoPosition(0, &e.Positions[0])},
+		Positions:   positions,
 	}
-	if err := tx.Create(employee).Error; err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// TODO: positions
-	position := toRepoPosition(0, &e.Positions[0])
-	if err := tx.Create(&position).Error; err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		return err
+	if err := r.db.WithContext(ctx).Create(employee).Error; err != nil {
+		return fmt.Errorf("failed to create employee: %w", err)
 	}
 
 	return nil
@@ -137,12 +135,12 @@ func preloadPositions(db *gorm.DB) *gorm.DB {
 	})
 }
 
-func (r *employeeRepo) GetEmployeeByID(id int) (domain.Employee, error) {
+func (r *employeeRepo) GetEmployeeByID(ctx context.Context, id int) (domain.Employee, error) {
 	var employee Employee
 
-	if err := preloadPositions(r.db).First(&employee, id).Error; err != nil {
+	if err := preloadPositions(r.db.WithContext(ctx)).First(&employee, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return domain.Employee{}, domain.ErrResourceNotFound
+			return domain.Employee{}, common.ErrResourceNotFound
 		}
 		return domain.Employee{}, err
 	}
@@ -150,15 +148,22 @@ func (r *employeeRepo) GetEmployeeByID(id int) (domain.Employee, error) {
 	return toDomainEmployee(&employee), nil
 }
 
-func (r *employeeRepo) GetEmployees() ([]domain.Employee, error) {
+func (r *employeeRepo) GetEmployees(ctx context.Context, page, pageSize int) ([]domain.Employee, int64, error) {
 	var employeeModels []Employee
 
-	err := preloadPositions(r.db).Find(&employeeModels).Error
-	if err != nil {
-		return nil, err
+	offset := (page - 1) * pageSize
+
+	var totalCount int64
+	if err := r.db.WithContext(ctx).Model(&Employee{}).Count(&totalCount).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count employees: %w", err)
 	}
 
-	var employees []domain.Employee
+	err := preloadPositions(r.db.WithContext(ctx)).Find(&employeeModels).Limit(pageSize).Offset(offset).Error
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get employees: %w", err)
+	}
+
+	employees := make([]domain.Employee, 0, len(employeeModels))
 	for i := range employeeModels {
 		empModel := employeeModels[i]
 		employee := domain.Employee{
@@ -187,5 +192,5 @@ func (r *employeeRepo) GetEmployees() ([]domain.Employee, error) {
 		employees = append(employees, employee)
 	}
 
-	return employees, nil
+	return employees, totalCount, nil
 }

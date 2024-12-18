@@ -17,15 +17,15 @@ import (
 	"hr-system/internal/employees/handler"
 	"hr-system/internal/employees/repo"
 	"hr-system/internal/employees/service"
+	"hr-system/internal/middleware"
 )
 
 func main() {
-	fmt.Printf("main first line!!")
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatalf("failed to load config, cause: %v", err)
 	}
-	fmt.Printf("config: %v\n", cfg)
+	fmt.Printf("config: %+v\n", cfg)
 
 	logger := common.NewLogger()
 
@@ -54,12 +54,14 @@ func main() {
 	}
 
 	employeeService := service.NewEmployeeService(employeeRepo)
-	employeeHandler := handler.NewEmployeeHandler(employeeService)
+	employeeHandler := handler.NewEmployeeHandler(logger, employeeService)
 
 	r := gin.Default()
+	r.Use(middleware.ContextMiddleware())
+
 	r.POST("api/v1/employees", employeeHandler.CreateEmployee)
-	r.POST("api/v1/employees/:id", employeeHandler.GetEmployeeByID)
-	r.POST("api/v1/employees", employeeHandler.GetEmployees)
+	r.GET("api/v1/employees/:id", employeeHandler.GetEmployeeByID)
+	r.GET("api/v1/employees", employeeHandler.GetEmployees)
 
 	logger.Fatal(r.Run(fmt.Sprintf(":%s", cfg.RestServerPort)))
 }

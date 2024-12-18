@@ -17,5 +17,6 @@ type Position struct {
 	ManagerLevel int       `json:"manager_level"`
 	MonthSalary  float64   `json:"month_salary" validate:"gte=0"`
 	StartDate    time.Time `json:"start_date" validate:"required"`
-	EndDate      time.Time `json:"end_time"`
+	// nil means no end date yet
+	EndDate *time.Time `json:"end_time"`
 }

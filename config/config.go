@@ -43,12 +43,13 @@ func LoadConfig() (Config, error) {
 	}
 
 	return Config{
-		MySQLHost:     mysqlHost,
-		MySQLPort:     mysqlPort,
-		MySQLUser:     mysqlUser,
-		MySQLPassword: mysqlPassword,
-		MySQLDBName:   mysqlDBName,
-		RedisHost:     redisHost,
-		RedisPort:     redisPort,
+		RestServerPort: restServerPort,
+		MySQLHost:      mysqlHost,
+		MySQLPort:      mysqlPort,
+		MySQLUser:      mysqlUser,
+		MySQLPassword:  mysqlPassword,
+		MySQLDBName:    mysqlDBName,
+		RedisHost:      redisHost,
+		RedisPort:      redisPort,
 	}, nil
 }

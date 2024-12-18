@@ -2,7 +2,6 @@ package handler
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -10,19 +9,23 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
+	"hr-system/internal/common"
 	"hr-system/internal/employees/domain"
 	"hr-system/internal/employees/service"
+	"hr-system/internal/middleware"
 )
 
 type EmployeeHandler struct {
 	service  service.EmployeeService
 	validate *validator.Validate
+	logger   *common.Logger
 }
 
-func NewEmployeeHandler(service service.EmployeeService) *EmployeeHandler {
+func NewEmployeeHandler(logger *common.Logger, service service.EmployeeService) *EmployeeHandler {
 	return &EmployeeHandler{
 		service:  service,
 		validate: validator.New(),
+		logger:   logger,
 	}
 }
 
@@ -50,18 +53,22 @@ type EmployeeResponse struct {
 }
 
 func (h *EmployeeHandler) CreateEmployee(c *gin.Context) {
+	ctx := c.Request.Context()
+
 	var req *CreateEmployeeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, fmt.Errorf("invalid request body, cause: %w", err))
+		c.JSON(http.StatusBadRequest, middleware.CreateErrResp("invalid request body, cause: %s", err))
 		return
 	}
+	h.logger.Info("create employee request: %+v", req)
 
 	if err := h.validate.Struct(req); err != nil {
-		c.JSON(http.StatusBadRequest, fmt.Errorf("invalid request body, cause: %w", err))
+		c.JSON(http.StatusBadRequest, middleware.CreateErrResp("invalid request body, cause: %s", err))
 		return
 	}
+	h.logger.Info("CreateEmployee pass validate: %+v", req)
 
-	employee, err := h.service.CreateEmployee(&domain.Employee{
+	employee, err := h.service.CreateEmployee(ctx, &domain.Employee{
 		Name:        req.Name,
 		Email:       req.Email,
 		Address:     req.Address,
@@ -77,7 +84,7 @@ func (h *EmployeeHandler) CreateEmployee(c *gin.Context) {
 		},
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, fmt.Errorf("failed to create employee, cause: %w\n", err))
+		c.JSON(http.StatusInternalServerError, middleware.CreateErrResp("failed to create employee, cause: %s\n", err))
 		return
 	}
 
@@ -85,15 +92,17 @@ func (h *EmployeeHandler) CreateEmployee(c *gin.Context) {
 }
 
 func (h *EmployeeHandler) GetEmployeeByID(c *gin.Context) {
+	ctx := c.Request.Context()
+
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid employee ID"})
 		return
 	}
 
-	employee, err := h.service.GetEmployeeByID(id)
+	employee, err := h.service.GetEmployeeByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, domain.ErrResourceNotFound) {
+		if errors.Is(err, common.ErrResourceNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -105,11 +114,27 @@ func (h *EmployeeHandler) GetEmployeeByID(c *gin.Context) {
 }
 
 func (h *EmployeeHandler) GetEmployees(c *gin.Context) {
-	employees, err := h.service.GetEmployees()
+	// TODO: order by query param
+	ctx := c.Request.Context()
+
+	var page, pageSize int
+
+	if p := c.DefaultQuery("page", "1"); p != "" {
+		page, _ = strconv.Atoi(p)
+	}
+	if ps := c.DefaultQuery("page_size", "10"); ps != "" {
+		pageSize, _ = strconv.Atoi(ps)
+	}
+
+	employees, totalCount, err := h.service.GetEmployees(ctx, page, pageSize)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	// 設置響應頭
+	c.Header("X-Total-Count", strconv.Itoa(int(totalCount)))
+	c.Header("X-Page", strconv.Itoa(page))
+	c.Header("X-Page-Size", strconv.Itoa(pageSize))
 
 	c.JSON(http.StatusOK, employees)
 }
