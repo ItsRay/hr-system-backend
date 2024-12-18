@@ -2,4 +2,4 @@ package domain
 
 import "errors"
 
-var ErrEmployeeNotFound = errors.New("employee not found")
+var ErrResourceNotFound = errors.New("resource not found")

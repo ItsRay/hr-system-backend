@@ -11,6 +11,8 @@ import (
 
 type EmployeeService interface {
 	CreateEmployee(employee *domain.Employee) (domain.Employee, error)
+	GetEmployeeByID(id int) (domain.Employee, error)
+	GetEmployees() ([]domain.Employee, error)
 }
 
 type employeeService struct {
@@ -44,4 +46,21 @@ func (s *employeeService) CreateEmployee(employee *domain.Employee) (domain.Empl
 
 	err := s.repo.Create(employee)
 	return *employee, err
+}
+
+func (s *employeeService) GetEmployeeByID(id int) (domain.Employee, error) {
+	employee, err := s.repo.GetEmployeeByID(id)
+	if err != nil {
+		return domain.Employee{}, err
+	}
+	return employee, nil
+}
+
+func (s *employeeService) GetEmployees() ([]domain.Employee, error) {
+	employees, err := s.repo.GetEmployees()
+	if err != nil {
+		return nil, err
+	}
+
+	return employees, nil
 }

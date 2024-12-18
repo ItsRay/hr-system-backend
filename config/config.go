@@ -6,6 +6,8 @@ import (
 )
 
 type Config struct {
+	RestServerPort string `env:"REST_SERVER_PORT"`
+
 	MySQLHost     string `env:"MYSQL_HOST"`
 	MySQLPort     string `env:"MYSQL_PORT"`
 	MySQLUser     string `env:"MYSQL_USER"`
@@ -17,6 +19,8 @@ type Config struct {
 }
 
 func LoadConfig() (Config, error) {
+	restServerPort := os.Getenv("REST_SERVER_PORT")
+
 	mysqlHost := os.Getenv("MYSQL_HOST")
 	mysqlPort := os.Getenv("MYSQL_PORT")
 	mysqlUser := os.Getenv("MYSQL_USER")
@@ -25,6 +29,10 @@ func LoadConfig() (Config, error) {
 
 	redisHost := os.Getenv("REDIS_HOST")
 	redisPort := os.Getenv("REDIS_PORT")
+
+	if restServerPort == "" {
+		return Config{}, fmt.Errorf("REST_SERVER_PORT environment variable is not set properly")
+	}
 
 	if mysqlHost == "" || mysqlPort == "" || mysqlUser == "" || mysqlPassword == "" || mysqlDBName == "" {
 		return Config{}, fmt.Errorf("MySQL environment variables are not set properly")

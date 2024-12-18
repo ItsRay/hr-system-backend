@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -50,12 +52,12 @@ type EmployeeResponse struct {
 func (h *EmployeeHandler) CreateEmployee(c *gin.Context) {
 	var req *CreateEmployeeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, fmt.Errorf("invalid request body, cause: %v", err))
+		c.JSON(http.StatusBadRequest, fmt.Errorf("invalid request body, cause: %w", err))
 		return
 	}
 
 	if err := h.validate.Struct(req); err != nil {
-		c.JSON(http.StatusBadRequest, fmt.Errorf("invalid request body, cause: %v", err))
+		c.JSON(http.StatusBadRequest, fmt.Errorf("invalid request body, cause: %w", err))
 		return
 	}
 
@@ -75,9 +77,39 @@ func (h *EmployeeHandler) CreateEmployee(c *gin.Context) {
 		},
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, fmt.Errorf("failed to create employee, cause: %v\n", err))
+		c.JSON(http.StatusInternalServerError, fmt.Errorf("failed to create employee, cause: %w\n", err))
 		return
 	}
 
 	c.JSON(http.StatusCreated, &employee)
+}
+
+func (h *EmployeeHandler) GetEmployeeByID(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid employee ID"})
+		return
+	}
+
+	employee, err := h.service.GetEmployeeByID(id)
+	if err != nil {
+		if errors.Is(err, domain.ErrResourceNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, employee)
+}
+
+func (h *EmployeeHandler) GetEmployees(c *gin.Context) {
+	employees, err := h.service.GetEmployees()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, employees)
 }

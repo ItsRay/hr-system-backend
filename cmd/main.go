@@ -41,7 +41,6 @@ func main() {
 	rdb := redis.NewClient(&redis.Options{
 		Addr: fmt.Sprintf("%s:%s", cfg.RedisHost, cfg.RedisPort),
 	})
-	// 驗證 Redis 連線
 	ctx := context.Background()
 	_, err = rdb.Ping(ctx).Result()
 	if err != nil {
@@ -58,7 +57,9 @@ func main() {
 	employeeHandler := handler.NewEmployeeHandler(employeeService)
 
 	r := gin.Default()
-	r.POST("/employees", employeeHandler.CreateEmployee)
+	r.POST("api/v1/employees", employeeHandler.CreateEmployee)
+	r.POST("api/v1/employees/:id", employeeHandler.GetEmployeeByID)
+	r.POST("api/v1/employees", employeeHandler.GetEmployees)
 
-	logger.Fatal(r.Run(":8080"))
+	logger.Fatal(r.Run(fmt.Sprintf(":%s", cfg.RestServerPort)))
 }

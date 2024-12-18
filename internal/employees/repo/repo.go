@@ -11,7 +11,8 @@ import (
 
 type EmployeeRepo interface {
 	Create(employee *domain.Employee) error
-	GetByID(id int) (*domain.Employee, error)
+	GetEmployeeByID(id int) (domain.Employee, error)
+	GetEmployees() ([]domain.Employee, error)
 }
 
 type Employee struct {
@@ -106,22 +107,85 @@ func (r *employeeRepo) Create(e *domain.Employee) error {
 	return nil
 }
 
-func (r *employeeRepo) GetByID(id int) (*domain.Employee, error) {
-	var repoEmployee Employee
+func toDomainEmployee(e *Employee) domain.Employee {
+	var domainPositions []domain.Position
+	for i := range e.Positions {
+		p := e.Positions[i]
+		domainPositions = append(domainPositions, domain.Position{
+			Title:        p.Title,
+			Level:        p.Level,
+			ManagerLevel: p.ManagerLevel,
+			MonthSalary:  p.MonthSalary,
+			StartDate:    p.StartDate,
+			EndDate:      p.EndDate,
+		})
+	}
 
-	if err := r.db.First(&repoEmployee, id).Error; err != nil {
+	return domain.Employee{
+		ID:          e.ID,
+		Name:        e.Name,
+		Email:       e.Email,
+		Address:     e.Address,
+		PhoneNumber: e.PhoneNumber,
+		Positions:   domainPositions,
+	}
+}
+
+func preloadPositions(db *gorm.DB) *gorm.DB {
+	return db.Preload("Positions", func(db *gorm.DB) *gorm.DB {
+		return db.Order("start_date DESC")
+	})
+}
+
+func (r *employeeRepo) GetEmployeeByID(id int) (domain.Employee, error) {
+	var employee Employee
+
+	if err := preloadPositions(r.db).First(&employee, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, domain.ErrEmployeeNotFound
+			return domain.Employee{}, domain.ErrResourceNotFound
 		}
+		return domain.Employee{}, err
+	}
+
+	return toDomainEmployee(&employee), nil
+}
+
+func (r *employeeRepo) GetEmployees() ([]domain.Employee, error) {
+	var employeeModels []Employee
+
+	err := preloadPositions(r.db).Find(&employeeModels).Error
+	if err != nil {
 		return nil, err
 	}
 
-	// 將資料庫層的 Employee 映射到 domain 層的 Employee 並返回
-	return &domain.Employee{
-		ID:          repoEmployee.ID,
-		Name:        repoEmployee.Name,
-		Email:       repoEmployee.Email,
-		Address:     repoEmployee.Address,
-		PhoneNumber: repoEmployee.PhoneNumber,
-	}, nil
+	var employees []domain.Employee
+	for i := range employeeModels {
+		empModel := employeeModels[i]
+		employee := domain.Employee{
+			ID:          empModel.ID,
+			Name:        empModel.Name,
+			Email:       empModel.Email,
+			Address:     empModel.Address,
+			PhoneNumber: empModel.PhoneNumber,
+		}
+
+		var positions []domain.Position
+		for j := range empModel.Positions {
+			posModel := empModel.Positions[j]
+			positions = append(positions, domain.Position{
+				Title:        posModel.Title,
+				Level:        posModel.Level,
+				ManagerLevel: posModel.ManagerLevel,
+				MonthSalary:  posModel.MonthSalary,
+				StartDate:    posModel.StartDate,
+				EndDate:      posModel.EndDate,
+			})
+		}
+
+		employee.Positions = positions
+
+		employees = append(employees, employee)
+	}
+
+	return employees, nil
 }
