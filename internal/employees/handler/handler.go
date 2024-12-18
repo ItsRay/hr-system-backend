@@ -98,7 +98,7 @@ func (h *EmployeeHandler) GetEmployeeByID(c *gin.Context) {
 
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid employee ID"})
+		c.JSON(http.StatusBadRequest, middleware.CreateErrResp("Invalid employee ID"))
 		return
 	}
 

@@ -16,13 +16,18 @@ import (
 	"hr-system/internal/cache"
 	"hr-system/internal/common"
 	employee_cache "hr-system/internal/employees/cache"
-	"hr-system/internal/employees/handler"
-	"hr-system/internal/employees/repo"
-	"hr-system/internal/employees/service"
+	employee_handler "hr-system/internal/employees/handler"
+	employee_repo "hr-system/internal/employees/repo"
+	employee_service "hr-system/internal/employees/service"
+	leave_cache "hr-system/internal/leaves/cache"
+	leave_handler "hr-system/internal/leaves/handler"
+	leave_repo "hr-system/internal/leaves/repo"
+	leave_service "hr-system/internal/leaves/service"
 	"hr-system/internal/middleware"
 )
 
 var cachePrefixEmployee = "employee"
+var cachePrefixLeave = "leave"
 
 func main() {
 	cfg, err := config.LoadConfig()
@@ -49,21 +54,32 @@ func main() {
 	}
 	commonCache := cache.NewCache(rdb)
 
-	employeeRepo, err := repo.NewEmployeeRepo(db)
-	if err != nil {
-		logger.Fatalf("Failed to New EmployeeRepo, cause: %v", err)
-	}
-
-	employeeService := service.NewEmployeeService(logger, employeeRepo,
-		employee_cache.NewEmployeeCache(commonCache, cachePrefixEmployee))
-	employeeHandler := handler.NewEmployeeHandler(logger, employeeService)
-
 	r := gin.Default()
 	r.Use(middleware.ContextMiddleware())
 
+	// API for employees
+	employeeRepo, err := employee_repo.NewEmployeeRepo(db)
+	if err != nil {
+		logger.Fatalf("Failed to New EmployeeRepo, cause: %v", err)
+	}
+	employeeService := employee_service.NewEmployeeService(logger, employeeRepo,
+		employee_cache.NewEmployeeCache(commonCache, cachePrefixEmployee))
+	employeeHandler := employee_handler.NewEmployeeHandler(logger, employeeService)
 	r.POST("api/v1/employees", employeeHandler.CreateEmployee)
 	r.GET("api/v1/employees/:id", employeeHandler.GetEmployeeByID)
 	r.GET("api/v1/employees", employeeHandler.GetEmployees)
+
+	// API for leaves
+	leaveRepo, err := leave_repo.NewLeaveRepo(db)
+	if err != nil {
+		logger.Fatalf("Failed to New leaveRepo, cause: %v", err)
+	}
+	leaveService := leave_service.NewLeaveService(logger, leaveRepo, employeeRepo,
+		leave_cache.NewLeaveCache(commonCache, cachePrefixLeave))
+	leaveHandler := leave_handler.NewLeaveHandler(logger, leaveService)
+	r.POST("api/v1/leaves", leaveHandler.CreateLeave)
+	r.POST("api/v1/leaves/:id/review", leaveHandler.ReviewLeave)
+	r.GET("api/v1/leaves", leaveHandler.GetLeaves)
 
 	logger.Fatalf(r.Run(fmt.Sprintf(":%s", cfg.RestServerPort)).Error())
 }
