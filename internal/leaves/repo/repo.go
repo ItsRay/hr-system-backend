@@ -15,7 +15,7 @@ type LeaveRepo interface {
 	CreateLeave(ctx context.Context, leave *domain.Leave) error
 	GetLeaveByID(ctx context.Context, id int) (domain.Leave, error)
 	GetLeaves(ctx context.Context, query domain.LeaveQuery) ([]domain.Leave, error)
-	UpdateLeave(ctx context.Context, leave *domain.Leave) error
+	UpdateLeaveAndReviews(ctx context.Context, leave *domain.Leave, reviews []domain.LeaveReview) error
 }
 
 type leaveRepo struct {
@@ -70,13 +70,54 @@ func (r *leaveRepo) GetLeaveByID(ctx context.Context, id int) (domain.Leave, err
 	return leave, nil
 }
 
-func (r *leaveRepo) UpdateLeave(ctx context.Context, leave *domain.Leave) error {
-	result := r.db.WithContext(ctx).Save(leave)
-	if result.Error != nil {
-		return fmt.Errorf("failed to update leave: %w", result.Error)
+func doTrans(db *gorm.DB, op func(*gorm.DB) error) (err error) {
+	tx := db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		}
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if err := op(tx); err != nil {
+		return err
 	}
-	if result.RowsAffected == 0 {
-		return fmt.Errorf("no rows affected, leave ID may not exist")
+	return tx.Commit().Error
+}
+
+func (r *leaveRepo) UpdateLeaveAndReviews(ctx context.Context, leave *domain.Leave, reviews []domain.LeaveReview) error {
+	err := doTrans(r.db.WithContext(ctx), func(tx *gorm.DB) error {
+		result := tx.Save(leave)
+		if result.Error != nil {
+			return fmt.Errorf("failed to update leave: %w", result.Error)
+		}
+		if result.RowsAffected == 0 {
+			return fmt.Errorf("no rows affected, leave ID may not exist")
+		}
+
+		for _, review := range reviews {
+			if review.ID == 0 {
+				// if review.ID == 0, it's a new review
+				result := tx.Create(&review)
+				if result.Error != nil {
+					return fmt.Errorf("failed to create leave review: %w", result.Error)
+				}
+			} else {
+				// update existing review
+				result := tx.Save(&review)
+				if result.Error != nil {
+					return fmt.Errorf("failed to update leave review: %w", result.Error)
+				}
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update leave and reviews: %w", err)
 	}
 
 	return nil

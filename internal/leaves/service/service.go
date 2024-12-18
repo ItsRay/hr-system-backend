@@ -136,9 +136,15 @@ func (s *leaveService) ReviewLeave(ctx context.Context, leaveID int, reviewerID 
 
 	// update review comment & status
 	now := time.Now()
-	leave.Reviews[len(leave.Reviews)-1].Status = decision
-	leave.Reviews[len(leave.Reviews)-1].Comment = comment
-	leave.Reviews[len(leave.Reviews)-1].ReviewedAt = &now
+	if len(leave.Reviews) == 0 {
+		return fmt.Errorf("unexpected error: no review found")
+	}
+	updateReviews := []domain.LeaveReview{
+		leave.Reviews[len(leave.Reviews)-1],
+	}
+	updateReviews[0].Comment = comment
+	updateReviews[0].ReviewedAt = &now
+	updateReviews[0].Status = decision
 
 	// update leave
 	if decision == domain.ReviewStatusApproved {
@@ -155,24 +161,23 @@ func (s *leaveService) ReviewLeave(ctx context.Context, leaveID int, reviewerID 
 			if reviewer.ManagerID == nil {
 				return fmt.Errorf("unexpected error: reviewer does not have a manager")
 			}
-			leave.Reviews = append(leave.Reviews, domain.LeaveReview{
+			updateReviews = append(updateReviews, domain.LeaveReview{
 				ReviewerID: *reviewer.ManagerID,
 				Status:     domain.ReviewStatusReviewing,
 			})
 			leave.CurrentReviewerID = reviewer.ManagerID
 		} else {
 			// leave approved
-			leave.CurrentReviewerID = nil
 			leave.Status = domain.ReviewStatusApproved
+			leave.CurrentReviewerID = nil
 		}
 	} else {
 		// rejected
 		leave.Status = domain.ReviewStatusRejected
 		leave.CurrentReviewerID = nil
-		leave.Reviews[len(leave.Reviews)-1].Comment = comment
 	}
 
-	err = s.leaveRepo.UpdateLeave(ctx, &leave)
+	err = s.leaveRepo.UpdateLeaveAndReviews(ctx, &leave, updateReviews)
 	if err != nil {
 		return fmt.Errorf("failed to update leave review: %w", err)
 	}
