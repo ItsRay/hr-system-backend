@@ -18,7 +18,7 @@ type EmployeeCache interface {
 	DeleteEmployeeCache(ctx context.Context, id int) error
 	GetEmployees(ctx context.Context, page, pageSize int) (employees []domain.Employee, totalCount int, er error)
 	SetEmployeesToCache(ctx context.Context, page, pageSize int, employees []domain.Employee, totalCount int, expiration time.Duration) error
-	DeleteEmployeesCache(ctx context.Context, page, pageSize int) error
+	DeleteEmployeesListCache(ctx context.Context) error
 }
 
 func NewEmployeeCache(c *cache.Cache, prefix string) EmployeeCache {
@@ -74,8 +74,13 @@ func (e *employeeCache) DeleteEmployeeCache(ctx context.Context, id int) error {
 	return e.cache.Del(ctx, cacheKey)
 }
 
-func (e *employeeCache) genEmployeesListCacheKey(prefix string, page, pageSize int) string {
-	return fmt.Sprintf("%s_list_page_%d_page_size_%d", prefix, page, pageSize)
+func (e *employeeCache) genEmployeesListCachePrefix() string {
+	return fmt.Sprintf("%s_list", e.prefix)
+}
+
+func (e *employeeCache) genEmployeesListCacheKey(page, pageSize int) string {
+	prefix := e.genEmployeesListCachePrefix()
+	return fmt.Sprintf("%s_page_%d_page_size_%d", prefix, page, pageSize)
 }
 
 type EmployeesCacheData struct {
@@ -84,7 +89,7 @@ type EmployeesCacheData struct {
 }
 
 func (e *employeeCache) GetEmployees(ctx context.Context, page, pageSize int) ([]domain.Employee, int, error) {
-	cacheKey := e.genEmployeesListCacheKey(e.prefix, page, pageSize)
+	cacheKey := e.genEmployeesListCacheKey(page, pageSize)
 	data, err := e.cache.Get(ctx, cacheKey)
 	if err != nil {
 		return nil, 0, err
@@ -111,7 +116,7 @@ func (e *employeeCache) SetEmployeesToCache(ctx context.Context, page, pageSize 
 		TotalCount: totalCount,
 	}
 
-	cacheKey := e.genEmployeesListCacheKey(e.prefix, page, pageSize)
+	cacheKey := e.genEmployeesListCacheKey(page, pageSize)
 
 	jsonData, err := json.Marshal(cacheData)
 	if err != nil {
@@ -121,7 +126,6 @@ func (e *employeeCache) SetEmployeesToCache(ctx context.Context, page, pageSize 
 	return e.cache.Set(ctx, cacheKey, string(jsonData), expiration)
 }
 
-func (e *employeeCache) DeleteEmployeesCache(ctx context.Context, page, pageSize int) error {
-	cacheKey := e.genEmployeesListCacheKey(e.prefix, page, pageSize)
-	return e.cache.Del(ctx, cacheKey)
+func (e *employeeCache) DeleteEmployeesListCache(ctx context.Context) error {
+	return e.cache.DelByPrefix(ctx, e.genEmployeesListCachePrefix())
 }

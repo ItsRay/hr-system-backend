@@ -24,6 +24,8 @@ type Employee struct {
 	Email       string     `gorm:"type:varchar(255);unique;not null"`
 	Address     string     `gorm:"type:varchar(255)"`
 	PhoneNumber string     `gorm:"type:varchar(20)"`
+	ManagerID   *int       `gorm:"index:idx_manager_id"`
+	Manager     *Employee  `gorm:"foreignKey:ManagerID;constraint:OnDelete:SET NULL"`
 	Positions   []Position `gorm:"foreignKey:EmployeeID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }
 
@@ -42,15 +44,6 @@ type Position struct {
 
 type employeeRepo struct {
 	db *gorm.DB
-}
-
-func ToRepositoryEmployee(e *domain.Employee) Employee {
-	return Employee{
-		Name:        e.Name,
-		Email:       e.Email,
-		Address:     e.Address,
-		PhoneNumber: e.PhoneNumber,
-	}
 }
 
 func NewEmployeeRepo(db *gorm.DB) (EmployeeRepo, error) {
@@ -96,11 +89,13 @@ func (r *employeeRepo) Create(ctx context.Context, e *domain.Employee) error {
 		Email:       e.Email,
 		Address:     e.Address,
 		PhoneNumber: e.PhoneNumber,
+		ManagerID:   e.ManagerID,
 		Positions:   positions,
 	}
 	if err := r.db.WithContext(ctx).Create(employee).Error; err != nil {
 		return fmt.Errorf("failed to create employee: %w", err)
 	}
+	e.ID = employee.ID
 
 	return nil
 }
@@ -119,6 +114,11 @@ func toDomainEmployee(e *Employee) domain.Employee {
 		})
 	}
 
+	var manager *domain.Employee
+	if e.Manager != nil {
+		managerPtr := toDomainEmployee(e.Manager)
+		manager = &managerPtr
+	}
 	return domain.Employee{
 		ID:          e.ID,
 		Name:        e.Name,
@@ -126,6 +126,8 @@ func toDomainEmployee(e *Employee) domain.Employee {
 		Address:     e.Address,
 		PhoneNumber: e.PhoneNumber,
 		Positions:   domainPositions,
+		ManagerID:   e.ManagerID,
+		Manager:     manager,
 	}
 }
 
@@ -135,10 +137,17 @@ func preloadPositions(db *gorm.DB) *gorm.DB {
 	})
 }
 
+func preloadManager(db *gorm.DB) *gorm.DB {
+	return db.Preload("Manager")
+}
+
 func (r *employeeRepo) GetEmployeeByID(ctx context.Context, id int) (domain.Employee, error) {
 	var employee Employee
 
-	if err := preloadPositions(r.db.WithContext(ctx)).First(&employee, id).Error; err != nil {
+	db := r.db.WithContext(ctx)
+	db = preloadPositions(db)
+	db = preloadManager(db)
+	if err := db.First(&employee, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return domain.Employee{}, common.ErrResourceNotFound
 		}
@@ -159,38 +168,16 @@ func (r *employeeRepo) GetEmployees(ctx context.Context, page, pageSize int) ([]
 	}
 	totalCount := int(totalCountInt64)
 
-	err := preloadPositions(r.db.WithContext(ctx)).Find(&employeeModels).Limit(pageSize).Offset(offset).Error
+	db := r.db.WithContext(ctx)
+	db = preloadPositions(db)
+	err := db.Find(&employeeModels).Limit(pageSize).Offset(offset).Error
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get employees: %w", err)
 	}
 
 	employees := make([]domain.Employee, 0, len(employeeModels))
 	for i := range employeeModels {
-		empModel := employeeModels[i]
-		employee := domain.Employee{
-			ID:          empModel.ID,
-			Name:        empModel.Name,
-			Email:       empModel.Email,
-			Address:     empModel.Address,
-			PhoneNumber: empModel.PhoneNumber,
-		}
-
-		var positions []domain.Position
-		for j := range empModel.Positions {
-			posModel := empModel.Positions[j]
-			positions = append(positions, domain.Position{
-				Title:        posModel.Title,
-				Level:        posModel.Level,
-				ManagerLevel: posModel.ManagerLevel,
-				MonthSalary:  posModel.MonthSalary,
-				StartDate:    posModel.StartDate,
-				EndDate:      posModel.EndDate,
-			})
-		}
-
-		employee.Positions = positions
-
-		employees = append(employees, employee)
+		employees = append(employees, toDomainEmployee(&employeeModels[i]))
 	}
 
 	return employees, totalCount, nil

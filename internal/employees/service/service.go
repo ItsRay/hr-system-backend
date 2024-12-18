@@ -53,14 +53,20 @@ func (s *employeeService) CreateEmployee(ctx context.Context, employee *domain.E
 		return domain.Employee{}, err
 	}
 
+	// TODO: check manager level
 	err := s.repo.Create(ctx, employee)
 	if err != nil {
 		return domain.Employee{}, err
 	}
 
-	err = s.cache.SetEmployeeToCache(ctx, employee, 1*time.Hour)
+	err = s.cache.DeleteEmployeesListCache(ctx)
 	if err != nil {
 		s.logger.Errorf("failed to update cache, cause: %s", err)
+	}
+
+	err = s.cache.SetEmployeeToCache(ctx, employee, 1*time.Hour)
+	if err != nil {
+		s.logger.Warnf("failed to update cache, cause: %s", err)
 	}
 
 	return *employee, nil

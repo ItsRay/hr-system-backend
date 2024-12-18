@@ -9,6 +9,8 @@ type Employee struct {
 	Address     string     `json:"address"`
 	PhoneNumber string     `json:"phone_number"`
 	Positions   []Position `json:"positions" validate:"required,gt=0,dive"`
+	ManagerID   *int       `json:"manager_id,omitempty"`
+	Manager     *Employee  `json:"manager,omitempty"`
 }
 
 type Position struct {

@@ -35,6 +35,7 @@ type CreateEmployeeRequest struct {
 	Address     string   `json:"address"`
 	PhoneNumber string   `json:"phone_number"`
 	Position    Position `json:"position_level"`
+	ManagerID   *int     `json:"manager_id"`
 }
 
 type Position struct {
@@ -82,6 +83,7 @@ func (h *EmployeeHandler) CreateEmployee(c *gin.Context) {
 				StartDate:    req.Position.StartDate,
 			},
 		},
+		ManagerID: req.ManagerID,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, middleware.CreateErrResp("failed to create employee, cause: %s\n", err))
@@ -131,7 +133,7 @@ func (h *EmployeeHandler) GetEmployees(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	// 設置響應頭
+
 	c.Header("X-Total-Count", strconv.Itoa(totalCount))
 	c.Header("X-Page", strconv.Itoa(page))
 	c.Header("X-Page-Size", strconv.Itoa(pageSize))

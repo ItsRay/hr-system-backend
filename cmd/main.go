@@ -29,18 +29,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to load config, cause: %v", err)
 	}
-	fmt.Printf("config: %+v\n", cfg)
 
 	logger := common.NewLogger()
 
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 		cfg.MySQLUser, cfg.MySQLPassword, cfg.MySQLHost, cfg.MySQLPort, cfg.MySQLDBName)
-	fmt.Printf("dsn: %s\n", dsn)
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		logger.Fatalf("Failed to connect to MySQL: %v", err)
 	}
-	fmt.Println("Connected to MySQL successfully!")
 
 	rdb := redis.NewClient(&redis.Options{
 		Addr: fmt.Sprintf("%s:%s", cfg.RedisHost, cfg.RedisPort),
@@ -50,7 +47,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to connect to Redis: %v", err)
 	}
-	fmt.Println("Connected to Redis successfully!")
 	commonCache := cache.NewCache(rdb)
 
 	employeeRepo, err := repo.NewEmployeeRepo(db)
