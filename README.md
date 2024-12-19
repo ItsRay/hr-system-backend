@@ -1,32 +1,20 @@
 # hr-system-backend
 
 ## Overview
-This project provides a Go-based backend service with MySQL and Redis, orchestrated using Docker Compose. 
-The Docker configurations are stored in the folder deployments.
+This project provides a Go-based backend service with MySQL and Redis, orchestrated using Docker Compose.
 
-## Getting Started
+## Prerequisites
+- Docker & Docker Compose
 
-1. Build and Run Containers
-In the deployments folder, run:
+## Quick Start
 
-    ```bash
-    docker-compose up --build
-    ```
+Start the application with MySQL and Redis:
+```bash
+make compose-up
+```
+Shut down all services:
+```bash 
+make compose-down
+```
 
-2. Environment Variables
-
-    The app uses the following environment variables (defined in docker-compose.yml):
-    
-    MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DB_NAME
-    REDIS_HOST, REDIS_PORT
-
-3. Stopping the Containers
-
-   To stop and remove containers, run:
-   ```bash
-   docker-compose down
-   ```
-   
-4. Access the Application
-
-    The application is accessible at http://localhost:8080.
+See the Makefile for more commands.

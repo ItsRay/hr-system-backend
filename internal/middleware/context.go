@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// ContextKey 用於自定義 context 中的 key
 type ContextKey string
 
 const RequestIDKey ContextKey = "RequestID"
