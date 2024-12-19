@@ -42,7 +42,7 @@ type LeaveReview struct {
 	UpdatedAt  time.Time    `gorm:"autoUpdateTime"`
 }
 
-type LeaveQuery struct {
+type LeavesQuery struct {
 	EmployeeID        *int
 	CurrentReviewerID *int
 }

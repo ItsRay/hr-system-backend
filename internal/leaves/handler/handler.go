@@ -35,6 +35,7 @@ type CreateLeaveRequest struct {
 }
 
 func (h *LeaveHandler) CreateLeave(c *gin.Context) {
+	// TODO: check employee rest leaves & leave date conflict
 	ctx := c.Request.Context()
 
 	var req CreateLeaveRequest
@@ -89,7 +90,6 @@ func (h *LeaveHandler) ReviewLeave(c *gin.Context) {
 	// TODO: Use JWT to get the reviewer ID
 	err = h.leaveService.ReviewLeave(ctx, leaveID, req.ReviewerID, req.Decision, req.Comment)
 	if err != nil {
-		h.logger.Errorf("Failed to review leave: %v", err)
 		if errors.Is(err, common.ErrResourceNotFound) {
 			c.JSON(http.StatusNotFound, middleware.CreateErrResp("leave not found, cause: %v", err))
 		} else if errors.Is(err, common.ErrInvalidInput) {
@@ -106,7 +106,7 @@ func (h *LeaveHandler) ReviewLeave(c *gin.Context) {
 func (h *LeaveHandler) GetLeaves(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	query := domain.LeaveQuery{}
+	query := domain.LeavesQuery{}
 	employeeID := c.Query("employee_id")
 	if employeeID != "" {
 		id, err := strconv.Atoi(employeeID)

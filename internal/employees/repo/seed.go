@@ -9,8 +9,8 @@ import (
 // SeedEmployees Seed function to seed Employee data
 func (r *employeeRepo) SeedEmployees(ctx context.Context) error {
 	// Create sample employees
-	// 4 -> 2 -> 1 -> 0
-	// 3 -> 0
+	// 5 -> 3 -> 2 -> 1
+	// 4 -> 1
 	employees := []Employee{
 		{
 			Name:        "Alice Johnson",

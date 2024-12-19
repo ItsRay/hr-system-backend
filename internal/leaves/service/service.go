@@ -18,7 +18,7 @@ import (
 
 type LeaveService interface {
 	CreateLeave(ctx context.Context, leave *domain.Leave) (domain.Leave, error)
-	GetLeaves(ctx context.Context, query domain.LeaveQuery) ([]domain.Leave, error)
+	GetLeaves(ctx context.Context, query domain.LeavesQuery) ([]domain.Leave, error)
 	ReviewLeave(ctx context.Context, leaveID, reviewerID int, decision domain.ReviewStatus, comment string) error
 	GetLeaveByID(ctx context.Context, id int) (domain.Leave, error)
 }
@@ -88,6 +88,18 @@ func (s *leaveService) CreateLeave(ctx context.Context, leave *domain.Leave) (do
 
 	if err := s.leaveRepo.CreateLeave(ctx, leave); err != nil {
 		return domain.Leave{}, fmt.Errorf("failed to create leave: %w", err)
+	}
+
+	// delete cache of this employee
+	if err := s.leaveCache.DelLeavesFromCache(ctx, domain.LeavesQuery{EmployeeID: &leave.EmployeeID}); err != nil {
+		s.logger.Errorf("failed to delete employee %d cache, cause: %s", leave.EmployeeID, err)
+	}
+	// delete cache of this reviewer
+	if leave.CurrentReviewerID != nil {
+		err := s.leaveCache.DelLeavesFromCache(ctx, domain.LeavesQuery{CurrentReviewerID: leave.CurrentReviewerID})
+		if err != nil {
+			s.logger.Errorf("failed to delete reviewer %d cache, cause: %s", leave.CurrentReviewerID, err)
+		}
 	}
 
 	if err := s.leaveCache.SetLeaveToCache(ctx, leave); err != nil {
@@ -184,29 +196,82 @@ func (s *leaveService) ReviewLeave(ctx context.Context, leaveID int, reviewerID 
 		return fmt.Errorf("failed to update leave review: %w", err)
 	}
 
+	// delete cache of this leave
+	if err := s.leaveCache.DelLeaveFromCache(ctx, leaveID); err != nil {
+		s.logger.Errorf("failed to delete leave %d cache, cause: %s", leaveID, err)
+	}
+	// delete cache of this employee
+	if err := s.leaveCache.DelLeavesFromCache(ctx, domain.LeavesQuery{EmployeeID: &leave.EmployeeID}); err != nil {
+		s.logger.Errorf("failed to delete employee %d cache, cause: %s", leave.EmployeeID, err)
+	}
+	// delete cache of old reviewer
+	if err := s.leaveCache.DelLeavesFromCache(ctx, domain.LeavesQuery{CurrentReviewerID: &reviewerID}); err != nil {
+		s.logger.Errorf("failed to delete reviewer %d cache, cause: %s", reviewerID, err)
+	}
+	// delete cache of new reviewer
+	if leave.CurrentReviewerID != nil && *leave.CurrentReviewerID != reviewerID {
+		err = s.leaveCache.DelLeavesFromCache(ctx, domain.LeavesQuery{CurrentReviewerID: leave.CurrentReviewerID})
+		if err != nil {
+			s.logger.Errorf("failed to delete reviewer %d cache, cause: %s", *leave.CurrentReviewerID, err)
+		}
+	}
+
 	return nil
 }
 
-func (s *leaveService) GetLeaves(ctx context.Context, query domain.LeaveQuery) ([]domain.Leave, error) {
+func (s *leaveService) GetLeaves(ctx context.Context, query domain.LeavesQuery) ([]domain.Leave, error) {
 	if query.EmployeeID == nil && query.CurrentReviewerID == nil {
 		return nil, fmt.Errorf("%w, employee ID or current reviewer ID must be provided", common.ErrInvalidInput)
 	}
+	if query.EmployeeID != nil && query.CurrentReviewerID != nil {
+		// for index and cache
+		return nil, fmt.Errorf("%w, only one of employee ID or current reviewer ID can be provided", common.ErrInvalidInput)
+	}
 
-	leaves, err := s.leaveRepo.GetLeaves(ctx, query)
+	// get from cache
+	leaves, err := s.leaveCache.GetLeavesFromCache(ctx, query)
+	if err == nil {
+		s.logger.Infof("[Cache Hit] leaves query: %+v", query)
+		return leaves, nil
+	}
+	if err != nil && !errors.Is(err, common.ErrResourceNotFound) {
+		s.logger.Warnf("failed to get leaves from cache, cause: %s", err)
+	}
+
+	// get from repo
+	leaves, err = s.leaveRepo.GetLeaves(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get leaves: %w", err)
+	}
+
+	// set cache
+	if err := s.leaveCache.SetLeavesToCache(ctx, query, leaves); err != nil {
+		s.logger.Errorf("failed to cache leaves data: %v", err)
 	}
 
 	return leaves, nil
 }
 
 func (s *leaveService) GetLeaveByID(ctx context.Context, id int) (domain.Leave, error) {
-	leave, err := s.leaveRepo.GetLeaveByID(ctx, id)
+	leave, err := s.leaveCache.GetLeaveFromCache(ctx, id)
+	if err == nil {
+		s.logger.Infof("[Cache Hit] leave id: %d", id)
+		return leave, nil
+	}
+	if err != nil && !errors.Is(err, common.ErrResourceNotFound) {
+		s.logger.Warnf("failed to get leave[%d] from cache, cause: %s", id, err)
+	}
+
+	leave, err = s.leaveRepo.GetLeaveByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, common.ErrResourceNotFound) {
 			return domain.Leave{}, common.ErrResourceNotFound
 		}
 		return domain.Leave{}, fmt.Errorf("failed to get leave: %w", err)
+	}
+
+	if err := s.leaveCache.SetLeaveToCache(ctx, &leave); err != nil {
+		s.logger.Warnf("failed to cache leave data: %v", err)
 	}
 
 	return leave, nil

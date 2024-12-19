@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/redis/go-redis/v9"
+
 	"hr-system/internal/cache"
 	"hr-system/internal/common"
 	"hr-system/internal/employees/domain"
@@ -40,7 +42,9 @@ func (e *employeeCache) genEmployeeCacheKey(prefix string, id int) string {
 func (e *employeeCache) GetEmployeeByID(ctx context.Context, id int) (domain.Employee, error) {
 	cacheKey := e.genEmployeeCacheKey(e.prefix, id)
 	data, err := e.cache.Get(ctx, cacheKey)
-	if err != nil {
+	if errors.Is(err, redis.Nil) {
+		return domain.Employee{}, common.ErrResourceNotFound
+	} else if err != nil {
 		return domain.Employee{}, err
 	}
 
@@ -91,7 +95,9 @@ type EmployeesCacheData struct {
 func (e *employeeCache) GetEmployees(ctx context.Context, page, pageSize int) ([]domain.Employee, int, error) {
 	cacheKey := e.genEmployeesListCacheKey(page, pageSize)
 	data, err := e.cache.Get(ctx, cacheKey)
-	if err != nil {
+	if errors.Is(err, redis.Nil) {
+		return nil, 0, common.ErrResourceNotFound
+	} else if err != nil {
 		return nil, 0, err
 	}
 

@@ -75,7 +75,7 @@ func (s *employeeService) CreateEmployee(ctx context.Context, employee *domain.E
 func (s *employeeService) GetEmployeeByID(ctx context.Context, id int) (domain.Employee, error) {
 	employee, err := s.cache.GetEmployeeByID(ctx, id)
 	if err == nil {
-		s.logger.Infof("cache hit, id: %d", id)
+		s.logger.Infof("[Cache Hit] employee id: %d", id)
 		return employee, nil
 	}
 	if !errors.Is(err, common.ErrResourceNotFound) {
@@ -103,7 +103,7 @@ func (s *employeeService) GetEmployees(ctx context.Context, page, pageSize int) 
 	}
 	employees, totalCount, err := s.cache.GetEmployees(ctx, page, pageSize)
 	if err == nil {
-		s.logger.Infof("cache hit, page: %d, pageSize: %d", page, pageSize)
+		s.logger.Infof("[Cache Hit] emplyees page: %d, pageSize: %d", page, pageSize)
 		return employees, totalCount, nil
 	}
 	if err != nil && !errors.Is(err, common.ErrResourceNotFound) {

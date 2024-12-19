@@ -15,7 +15,7 @@ import (
 type LeaveRepo interface {
 	CreateLeave(ctx context.Context, leave *domain.Leave) error
 	GetLeaveByID(ctx context.Context, id int) (domain.Leave, error)
-	GetLeaves(ctx context.Context, query domain.LeaveQuery) ([]domain.Leave, error)
+	GetLeaves(ctx context.Context, query domain.LeavesQuery) ([]domain.Leave, error)
 	UpdateLeaveAndReviews(ctx context.Context, leave *domain.Leave, reviews []domain.LeaveReview) error
 }
 
@@ -130,7 +130,7 @@ func (r *leaveRepo) UpdateLeaveAndReviews(ctx context.Context, leave *domain.Lea
 	return nil
 }
 
-func (r *leaveRepo) GetLeaves(ctx context.Context, query domain.LeaveQuery) ([]domain.Leave, error) {
+func (r *leaveRepo) GetLeaves(ctx context.Context, query domain.LeavesQuery) ([]domain.Leave, error) {
 	// TODO: pagination
 	var leaves []domain.Leave
 

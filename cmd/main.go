@@ -80,6 +80,7 @@ func main() {
 	leaveService := leave_service.NewLeaveService(logger, leaveRepo, employeeRepo,
 		leave_cache.NewLeaveCache(commonCache, cachePrefixLeave))
 	leaveHandler := leave_handler.NewLeaveHandler(logger, leaveService)
+	// TODO: revoke leave
 	r.POST("api/v1/leaves", leaveHandler.CreateLeave)
 	r.POST("api/v1/leaves/:id/review", leaveHandler.ReviewLeave)
 	r.GET("api/v1/leaves", leaveHandler.GetLeaves)
