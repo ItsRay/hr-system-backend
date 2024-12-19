@@ -9,6 +9,7 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	"hr-system/internal/common"
+	common_errors "hr-system/internal/common/errors"
 	"hr-system/internal/employees/cache"
 	"hr-system/internal/employees/domain"
 	"hr-system/internal/employees/repo"
@@ -50,7 +51,7 @@ func (s *employeeService) validateCreateEmployee(e *domain.Employee) error {
 
 func (s *employeeService) CreateEmployee(ctx context.Context, employee *domain.Employee) (domain.Employee, error) {
 	if err := s.validateCreateEmployee(employee); err != nil {
-		return domain.Employee{}, fmt.Errorf("%w, detail: %s", common.ErrInvalidInput, err)
+		return domain.Employee{}, fmt.Errorf("%w, detail: %s", common_errors.ErrInvalidInput, err)
 	}
 
 	// TODO: check manager level vs manager
@@ -78,14 +79,14 @@ func (s *employeeService) GetEmployeeByID(ctx context.Context, id int) (domain.E
 		s.logger.Infof("[Cache Hit] employee id: %d", id)
 		return employee, nil
 	}
-	if !errors.Is(err, common.ErrResourceNotFound) {
+	if !errors.Is(err, common_errors.ErrResourceNotFound) {
 		s.logger.Warnf("failed to get employee from cache, cause: %s", err)
 	}
 
 	employee, err = s.repo.GetEmployeeByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, common.ErrResourceNotFound) {
-			return domain.Employee{}, common.ErrResourceNotFound
+		if errors.Is(err, common_errors.ErrResourceNotFound) {
+			return domain.Employee{}, common_errors.ErrResourceNotFound
 		}
 		return domain.Employee{}, err
 	}
@@ -99,14 +100,14 @@ func (s *employeeService) GetEmployeeByID(ctx context.Context, id int) (domain.E
 
 func (s *employeeService) GetEmployees(ctx context.Context, page, pageSize int) ([]domain.Employee, int, error) {
 	if page < 1 || pageSize < 1 {
-		return nil, 0, fmt.Errorf("%w, invalid page(%d) or page size(%d)", common.ErrInvalidInput, page, pageSize)
+		return nil, 0, fmt.Errorf("%w, invalid page(%d) or page size(%d)", common_errors.ErrInvalidInput, page, pageSize)
 	}
 	employees, totalCount, err := s.cache.GetEmployees(ctx, page, pageSize)
 	if err == nil {
 		s.logger.Infof("[Cache Hit] emplyees page: %d, pageSize: %d", page, pageSize)
 		return employees, totalCount, nil
 	}
-	if err != nil && !errors.Is(err, common.ErrResourceNotFound) {
+	if err != nil && !errors.Is(err, common_errors.ErrResourceNotFound) {
 		s.logger.Warnf("failed to get employees from cache, cause: %s", err)
 	}
 

@@ -7,7 +7,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"hr-system/internal/common"
+	"hr-system/internal/common/errors"
 )
 
 type Cache struct {
@@ -65,5 +65,5 @@ func (c *Cache) DelByPrefix(ctx context.Context, prefix string) error {
 		}
 	}
 
-	return common.Combine(errs...)
+	return errors.Combine(errs...)
 }

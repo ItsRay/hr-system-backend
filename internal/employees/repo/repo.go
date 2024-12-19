@@ -8,7 +8,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"hr-system/internal/common"
+	common_errors "hr-system/internal/common/errors"
 	"hr-system/internal/employees/domain"
 )
 
@@ -156,7 +156,7 @@ func (r *employeeRepo) GetEmployeeByID(ctx context.Context, id int) (domain.Empl
 	db = preloadManager(db)
 	if err := db.First(&employee, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return domain.Employee{}, common.ErrResourceNotFound
+			return domain.Employee{}, common_errors.ErrResourceNotFound
 		}
 		return domain.Employee{}, err
 	}

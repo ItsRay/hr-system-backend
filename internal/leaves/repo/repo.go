@@ -7,7 +7,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"hr-system/internal/common"
+	common_errors "hr-system/internal/common/errors"
 	employee_repo "hr-system/internal/employees/repo"
 	"hr-system/internal/leaves/domain"
 )
@@ -70,7 +70,7 @@ func (r *leaveRepo) GetLeaveByID(ctx context.Context, id int) (domain.Leave, err
 	db = preloadReviews(db)
 	if err := db.First(&leave, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return domain.Leave{}, common.ErrResourceNotFound
+			return domain.Leave{}, common_errors.ErrResourceNotFound
 		}
 		return domain.Leave{}, fmt.Errorf("failed to find leave with id %d: %w", id, err)
 	}

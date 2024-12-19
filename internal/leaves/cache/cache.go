@@ -10,7 +10,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"hr-system/internal/cache"
-	"hr-system/internal/common"
+	common_errors "hr-system/internal/common/errors"
 	"hr-system/internal/leaves/domain"
 )
 
@@ -57,7 +57,7 @@ func (c *leaveCache) GetLeaveFromCache(ctx context.Context, id int) (domain.Leav
 	cacheKey := c.genCacheKeyByID(id)
 	data, err := c.cache.Get(ctx, cacheKey)
 	if errors.Is(err, redis.Nil) {
-		return domain.Leave{}, common.ErrResourceNotFound
+		return domain.Leave{}, common_errors.ErrResourceNotFound
 	} else if err != nil {
 		return domain.Leave{}, err
 	}
@@ -100,12 +100,12 @@ func (c *leaveCache) GetLeavesFromCache(ctx context.Context, query domain.Leaves
 	cacheKey := c.genCacheKey(query)
 	data, err := c.cache.Get(ctx, cacheKey)
 	if errors.Is(err, redis.Nil) {
-		return nil, common.ErrResourceNotFound
+		return nil, common_errors.ErrResourceNotFound
 	} else if err != nil {
 		return nil, err
 	}
 	if data == "" {
-		return nil, common.ErrResourceNotFound
+		return nil, common_errors.ErrResourceNotFound
 	}
 
 	var leaves []domain.Leave

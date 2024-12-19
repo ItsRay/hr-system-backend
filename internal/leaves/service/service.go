@@ -9,6 +9,7 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	"hr-system/internal/common"
+	common_errors "hr-system/internal/common/errors"
 	employee_domain "hr-system/internal/employees/domain"
 	employee_repo "hr-system/internal/employees/repo"
 	"hr-system/internal/leaves/cache"
@@ -56,13 +57,13 @@ func (s *leaveService) validateCreateLeave(leave *domain.Leave) error {
 
 func (s *leaveService) CreateLeave(ctx context.Context, leave *domain.Leave) (domain.Leave, error) {
 	if err := s.validateCreateLeave(leave); err != nil {
-		return domain.Leave{}, fmt.Errorf("%w, detail: %s", common.ErrInvalidInput, err)
+		return domain.Leave{}, fmt.Errorf("%w, detail: %s", common_errors.ErrInvalidInput, err)
 	}
 
 	employee, err := s.employeeRepo.GetEmployeeByID(ctx, leave.EmployeeID)
 	if err != nil {
-		if errors.Is(err, common.ErrResourceNotFound) {
-			return domain.Leave{}, common.ErrResourceNotFound
+		if errors.Is(err, common_errors.ErrResourceNotFound) {
+			return domain.Leave{}, common_errors.ErrResourceNotFound
 		}
 		return domain.Leave{}, fmt.Errorf("failed to get manager IDs: %w", err)
 	}
@@ -128,23 +129,23 @@ func needNextReviewer(leave *domain.Leave, approver *employee_domain.Employee) b
 func (s *leaveService) ReviewLeave(ctx context.Context, leaveID int, reviewerID int, decision domain.ReviewStatus,
 	comment string) error {
 	if decision != domain.ReviewStatusApproved && decision != domain.ReviewStatusRejected {
-		return fmt.Errorf("%w, invalid decision: %s", common.ErrInvalidInput, decision)
+		return fmt.Errorf("%w, invalid decision: %s", common_errors.ErrInvalidInput, decision)
 	}
 
 	leave, err := s.leaveRepo.GetLeaveByID(ctx, leaveID)
 	if err != nil {
-		if errors.Is(err, common.ErrResourceNotFound) {
-			return common.ErrResourceNotFound
+		if errors.Is(err, common_errors.ErrResourceNotFound) {
+			return common_errors.ErrResourceNotFound
 		}
 		return fmt.Errorf("failed to retrieve leave: %w", err)
 	}
 	if leave.Status != domain.ReviewStatusReviewing {
-		return fmt.Errorf("%w, leave is not in reviewing status", common.ErrStatusConflict)
+		return fmt.Errorf("%w, leave is not in reviewing status", common_errors.ErrStatusConflict)
 	}
 
 	// check reviewer permission
 	if leave.CurrentReviewerID == nil || *leave.CurrentReviewerID != reviewerID {
-		return fmt.Errorf("%w, it's not waiting for this reviewer to review", common.ErrStatusConflict)
+		return fmt.Errorf("%w, it's not waiting for this reviewer to review", common_errors.ErrStatusConflict)
 	}
 
 	// update review comment & status
@@ -164,8 +165,8 @@ func (s *leaveService) ReviewLeave(ctx context.Context, leaveID int, reviewerID 
 		// approved
 		reviewer, err := s.employeeRepo.GetEmployeeByID(ctx, reviewerID)
 		if err != nil {
-			if errors.Is(err, common.ErrResourceNotFound) {
-				return common.ErrResourceNotFound
+			if errors.Is(err, common_errors.ErrResourceNotFound) {
+				return common_errors.ErrResourceNotFound
 			}
 			return fmt.Errorf("failed to get manager IDs: %w", err)
 		}
@@ -221,11 +222,11 @@ func (s *leaveService) ReviewLeave(ctx context.Context, leaveID int, reviewerID 
 
 func (s *leaveService) GetLeaves(ctx context.Context, query domain.LeavesQuery) ([]domain.Leave, error) {
 	if query.EmployeeID == nil && query.CurrentReviewerID == nil {
-		return nil, fmt.Errorf("%w, employee ID or current reviewer ID must be provided", common.ErrInvalidInput)
+		return nil, fmt.Errorf("%w, employee ID or current reviewer ID must be provided", common_errors.ErrInvalidInput)
 	}
 	if query.EmployeeID != nil && query.CurrentReviewerID != nil {
 		// for index and cache
-		return nil, fmt.Errorf("%w, only one of employee ID or current reviewer ID can be provided", common.ErrInvalidInput)
+		return nil, fmt.Errorf("%w, only one of employee ID or current reviewer ID can be provided", common_errors.ErrInvalidInput)
 	}
 
 	// get from cache
@@ -234,7 +235,7 @@ func (s *leaveService) GetLeaves(ctx context.Context, query domain.LeavesQuery) 
 		s.logger.Infof("[Cache Hit] leaves query: %+v", query)
 		return leaves, nil
 	}
-	if err != nil && !errors.Is(err, common.ErrResourceNotFound) {
+	if err != nil && !errors.Is(err, common_errors.ErrResourceNotFound) {
 		s.logger.Warnf("failed to get leaves from cache, cause: %s", err)
 	}
 
@@ -258,14 +259,14 @@ func (s *leaveService) GetLeaveByID(ctx context.Context, id int) (domain.Leave, 
 		s.logger.Infof("[Cache Hit] leave id: %d", id)
 		return leave, nil
 	}
-	if err != nil && !errors.Is(err, common.ErrResourceNotFound) {
+	if err != nil && !errors.Is(err, common_errors.ErrResourceNotFound) {
 		s.logger.Warnf("failed to get leave[%d] from cache, cause: %s", id, err)
 	}
 
 	leave, err = s.leaveRepo.GetLeaveByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, common.ErrResourceNotFound) {
-			return domain.Leave{}, common.ErrResourceNotFound
+		if errors.Is(err, common_errors.ErrResourceNotFound) {
+			return domain.Leave{}, common_errors.ErrResourceNotFound
 		}
 		return domain.Leave{}, fmt.Errorf("failed to get leave: %w", err)
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"hr-system/internal/common"
+	common_errors "hr-system/internal/common/errors"
 	"hr-system/internal/leaves/domain"
 	"hr-system/internal/leaves/service"
 	"hr-system/internal/middleware"
@@ -52,9 +53,9 @@ func (h *LeaveHandler) CreateLeave(c *gin.Context) {
 		Reason:     req.Reason,
 	})
 	if err != nil {
-		if errors.Is(err, common.ErrResourceNotFound) {
+		if errors.Is(err, common_errors.ErrResourceNotFound) {
 			c.JSON(http.StatusNotFound, middleware.CreateErrResp("employee not found"))
-		} else if errors.Is(err, common.ErrInvalidInput) {
+		} else if errors.Is(err, common_errors.ErrInvalidInput) {
 			c.JSON(http.StatusBadRequest, middleware.CreateErrResp("invalid input, cause: %v", err))
 		} else {
 			c.JSON(http.StatusInternalServerError, middleware.CreateErrResp("Failed to create leave: %v", err))
@@ -90,9 +91,9 @@ func (h *LeaveHandler) ReviewLeave(c *gin.Context) {
 	// TODO: Use JWT to get the reviewer ID
 	err = h.leaveService.ReviewLeave(ctx, leaveID, req.ReviewerID, req.Decision, req.Comment)
 	if err != nil {
-		if errors.Is(err, common.ErrResourceNotFound) {
+		if errors.Is(err, common_errors.ErrResourceNotFound) {
 			c.JSON(http.StatusNotFound, middleware.CreateErrResp("leave not found, cause: %v", err))
-		} else if errors.Is(err, common.ErrInvalidInput) {
+		} else if errors.Is(err, common_errors.ErrInvalidInput) {
 			c.JSON(http.StatusBadRequest, middleware.CreateErrResp("invalid input, cause: %v", err))
 		} else {
 			c.JSON(http.StatusInternalServerError, middleware.CreateErrResp("failed to review leave, cause: %v", err))
@@ -129,7 +130,7 @@ func (h *LeaveHandler) GetLeaves(c *gin.Context) {
 
 	leaves, err := h.leaveService.GetLeaves(ctx, query)
 	if err != nil {
-		if errors.Is(err, common.ErrInvalidInput) {
+		if errors.Is(err, common_errors.ErrInvalidInput) {
 			c.JSON(http.StatusBadRequest, middleware.CreateErrResp("invalid input, cause: %v", err))
 		} else {
 			c.JSON(http.StatusInternalServerError, middleware.CreateErrResp("failed to get leaves: %v", err))
@@ -151,7 +152,7 @@ func (h *LeaveHandler) GetLeaveByID(c *gin.Context) {
 
 	leave, err := h.leaveService.GetLeaveByID(ctx, leaveID)
 	if err != nil {
-		if errors.Is(err, common.ErrResourceNotFound) {
+		if errors.Is(err, common_errors.ErrResourceNotFound) {
 			c.JSON(http.StatusNotFound, middleware.CreateErrResp("leave not found, cause: %v", err))
 		} else {
 			c.JSON(http.StatusInternalServerError, middleware.CreateErrResp("failed to get leave: %v", err))

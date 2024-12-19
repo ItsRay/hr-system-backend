@@ -10,7 +10,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"hr-system/internal/cache"
-	"hr-system/internal/common"
+	common_errors "hr-system/internal/common/errors"
 	"hr-system/internal/employees/domain"
 )
 
@@ -43,13 +43,13 @@ func (e *employeeCache) GetEmployeeByID(ctx context.Context, id int) (domain.Emp
 	cacheKey := e.genEmployeeCacheKey(e.prefix, id)
 	data, err := e.cache.Get(ctx, cacheKey)
 	if errors.Is(err, redis.Nil) {
-		return domain.Employee{}, common.ErrResourceNotFound
+		return domain.Employee{}, common_errors.ErrResourceNotFound
 	} else if err != nil {
 		return domain.Employee{}, err
 	}
 
 	if data == "" {
-		return domain.Employee{}, common.ErrResourceNotFound
+		return domain.Employee{}, common_errors.ErrResourceNotFound
 	}
 
 	var employee domain.Employee
@@ -96,13 +96,13 @@ func (e *employeeCache) GetEmployees(ctx context.Context, page, pageSize int) ([
 	cacheKey := e.genEmployeesListCacheKey(page, pageSize)
 	data, err := e.cache.Get(ctx, cacheKey)
 	if errors.Is(err, redis.Nil) {
-		return nil, 0, common.ErrResourceNotFound
+		return nil, 0, common_errors.ErrResourceNotFound
 	} else if err != nil {
 		return nil, 0, err
 	}
 
 	if data == "" {
-		return nil, 0, common.ErrResourceNotFound
+		return nil, 0, common_errors.ErrResourceNotFound
 	}
 
 	var employees EmployeesCacheData

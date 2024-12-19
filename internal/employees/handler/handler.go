@@ -10,6 +10,7 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	"hr-system/internal/common"
+	common_errors "hr-system/internal/common/errors"
 	"hr-system/internal/employees/domain"
 	"hr-system/internal/employees/service"
 	"hr-system/internal/middleware"
@@ -86,7 +87,7 @@ func (h *EmployeeHandler) CreateEmployee(c *gin.Context) {
 		ManagerID: req.ManagerID,
 	})
 	if err != nil {
-		if errors.Is(err, common.ErrInvalidInput) {
+		if errors.Is(err, common_errors.ErrInvalidInput) {
 			c.JSON(http.StatusBadRequest, middleware.CreateErrResp("invalid input, detail: %s", err))
 		} else {
 			c.JSON(http.StatusInternalServerError, middleware.CreateErrResp("failed to create employee, cause: %s", err))
@@ -108,7 +109,7 @@ func (h *EmployeeHandler) GetEmployeeByID(c *gin.Context) {
 
 	employee, err := h.service.GetEmployeeByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, common.ErrResourceNotFound) {
+		if errors.Is(err, common_errors.ErrResourceNotFound) {
 			c.JSON(http.StatusNotFound, middleware.CreateErrResp(err.Error()))
 		} else {
 			c.JSON(http.StatusInternalServerError, middleware.CreateErrResp(err.Error()))
@@ -134,7 +135,7 @@ func (h *EmployeeHandler) GetEmployees(c *gin.Context) {
 
 	employees, totalCount, err := h.service.GetEmployees(ctx, page, pageSize)
 	if err != nil {
-		if errors.Is(err, common.ErrInvalidInput) {
+		if errors.Is(err, common_errors.ErrInvalidInput) {
 			c.JSON(http.StatusBadRequest, middleware.CreateErrResp(err.Error()))
 		} else {
 			c.JSON(http.StatusInternalServerError, middleware.CreateErrResp(err.Error()))
