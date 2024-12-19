@@ -83,6 +83,7 @@ func main() {
 	r.POST("api/v1/leaves", leaveHandler.CreateLeave)
 	r.POST("api/v1/leaves/:id/review", leaveHandler.ReviewLeave)
 	r.GET("api/v1/leaves", leaveHandler.GetLeaves)
+	r.GET("api/v1/leaves/:id", leaveHandler.GetLeaveByID)
 
 	logger.Fatalf(r.Run(fmt.Sprintf(":%s", cfg.RestServerPort)).Error())
 }

@@ -139,3 +139,25 @@ func (h *LeaveHandler) GetLeaves(c *gin.Context) {
 
 	c.JSON(http.StatusOK, leaves)
 }
+
+func (h *LeaveHandler) GetLeaveByID(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	leaveID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, middleware.CreateErrResp("Invalid leave ID"))
+		return
+	}
+
+	leave, err := h.leaveService.GetLeaveByID(ctx, leaveID)
+	if err != nil {
+		if errors.Is(err, common.ErrResourceNotFound) {
+			c.JSON(http.StatusNotFound, middleware.CreateErrResp("leave not found, cause: %v", err))
+		} else {
+			c.JSON(http.StatusInternalServerError, middleware.CreateErrResp("failed to get leave: %v", err))
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, leave)
+}

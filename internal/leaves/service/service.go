@@ -20,6 +20,7 @@ type LeaveService interface {
 	CreateLeave(ctx context.Context, leave *domain.Leave) (domain.Leave, error)
 	GetLeaves(ctx context.Context, query domain.LeaveQuery) ([]domain.Leave, error)
 	ReviewLeave(ctx context.Context, leaveID, reviewerID int, decision domain.ReviewStatus, comment string) error
+	GetLeaveByID(ctx context.Context, id int) (domain.Leave, error)
 }
 
 type leaveService struct {
@@ -197,4 +198,16 @@ func (s *leaveService) GetLeaves(ctx context.Context, query domain.LeaveQuery) (
 	}
 
 	return leaves, nil
+}
+
+func (s *leaveService) GetLeaveByID(ctx context.Context, id int) (domain.Leave, error) {
+	leave, err := s.leaveRepo.GetLeaveByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, common.ErrResourceNotFound) {
+			return domain.Leave{}, common.ErrResourceNotFound
+		}
+		return domain.Leave{}, fmt.Errorf("failed to get leave: %w", err)
+	}
+
+	return leave, nil
 }
