@@ -7,6 +7,8 @@ import (
 )
 
 var ErrResourceNotFound = errors.New("resource not found")
+var ErrInvalidInput = errors.New("invalid input")
+var ErrStatusConflict = errors.New("status conflict")
 
 func Combine(errs ...error) error {
 	if len(errs) == 0 {

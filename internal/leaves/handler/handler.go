@@ -53,9 +53,11 @@ func (h *LeaveHandler) CreateLeave(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, common.ErrResourceNotFound) {
 			c.JSON(http.StatusNotFound, middleware.CreateErrResp("employee not found"))
-			return
+		} else if errors.Is(err, common.ErrInvalidInput) {
+			c.JSON(http.StatusBadRequest, middleware.CreateErrResp("invalid input, cause: %v", err))
+		} else {
+			c.JSON(http.StatusInternalServerError, middleware.CreateErrResp("Failed to create leave: %v", err))
 		}
-		c.JSON(http.StatusInternalServerError, middleware.CreateErrResp("Failed to create leave: %v", err))
 		return
 	}
 
@@ -90,13 +92,15 @@ func (h *LeaveHandler) ReviewLeave(c *gin.Context) {
 		h.logger.Errorf("Failed to review leave: %v", err)
 		if errors.Is(err, common.ErrResourceNotFound) {
 			c.JSON(http.StatusNotFound, middleware.CreateErrResp("leave not found, cause: %v", err))
-			return
+		} else if errors.Is(err, common.ErrInvalidInput) {
+			c.JSON(http.StatusBadRequest, middleware.CreateErrResp("invalid input, cause: %v", err))
+		} else {
+			c.JSON(http.StatusInternalServerError, middleware.CreateErrResp("failed to review leave, cause: %v", err))
 		}
-		c.JSON(http.StatusInternalServerError, middleware.CreateErrResp("failed to review leave, cause: %v", err))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Leave reviewed successfully"})
+	c.Status(http.StatusNoContent)
 }
 
 func (h *LeaveHandler) GetLeaves(c *gin.Context) {
@@ -125,7 +129,11 @@ func (h *LeaveHandler) GetLeaves(c *gin.Context) {
 
 	leaves, err := h.leaveService.GetLeaves(ctx, query)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.CreateErrResp("failed to get leaves: %v", err))
+		if errors.Is(err, common.ErrInvalidInput) {
+			c.JSON(http.StatusBadRequest, middleware.CreateErrResp("invalid input, cause: %v", err))
+		} else {
+			c.JSON(http.StatusInternalServerError, middleware.CreateErrResp("failed to get leaves: %v", err))
+		}
 		return
 	}
 

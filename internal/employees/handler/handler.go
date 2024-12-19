@@ -86,7 +86,11 @@ func (h *EmployeeHandler) CreateEmployee(c *gin.Context) {
 		ManagerID: req.ManagerID,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.CreateErrResp("failed to create employee, cause: %s\n", err))
+		if errors.Is(err, common.ErrInvalidInput) {
+			c.JSON(http.StatusBadRequest, middleware.CreateErrResp("invalid input, detail: %s", err))
+		} else {
+			c.JSON(http.StatusInternalServerError, middleware.CreateErrResp("failed to create employee, cause: %s", err))
+		}
 		return
 	}
 
@@ -105,9 +109,9 @@ func (h *EmployeeHandler) GetEmployeeByID(c *gin.Context) {
 	employee, err := h.service.GetEmployeeByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, common.ErrResourceNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			c.JSON(http.StatusNotFound, middleware.CreateErrResp(err.Error()))
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, middleware.CreateErrResp(err.Error()))
 		}
 		return
 	}
@@ -130,7 +134,11 @@ func (h *EmployeeHandler) GetEmployees(c *gin.Context) {
 
 	employees, totalCount, err := h.service.GetEmployees(ctx, page, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		if errors.Is(err, common.ErrInvalidInput) {
+			c.JSON(http.StatusBadRequest, middleware.CreateErrResp(err.Error()))
+		} else {
+			c.JSON(http.StatusInternalServerError, middleware.CreateErrResp(err.Error()))
+		}
 		return
 	}
 

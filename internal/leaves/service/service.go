@@ -55,7 +55,7 @@ func (s *leaveService) validateCreateLeave(leave *domain.Leave) error {
 
 func (s *leaveService) CreateLeave(ctx context.Context, leave *domain.Leave) (domain.Leave, error) {
 	if err := s.validateCreateLeave(leave); err != nil {
-		return domain.Leave{}, err
+		return domain.Leave{}, fmt.Errorf("%w, detail: %s", common.ErrInvalidInput, err)
 	}
 
 	employee, err := s.employeeRepo.GetEmployeeByID(ctx, leave.EmployeeID)
@@ -115,7 +115,7 @@ func needNextReviewer(leave *domain.Leave, approver *employee_domain.Employee) b
 func (s *leaveService) ReviewLeave(ctx context.Context, leaveID int, reviewerID int, decision domain.ReviewStatus,
 	comment string) error {
 	if decision != domain.ReviewStatusApproved && decision != domain.ReviewStatusRejected {
-		return fmt.Errorf("invalid decision: %s", decision)
+		return fmt.Errorf("%w, invalid decision: %s", common.ErrInvalidInput, decision)
 	}
 
 	leave, err := s.leaveRepo.GetLeaveByID(ctx, leaveID)
@@ -126,12 +126,12 @@ func (s *leaveService) ReviewLeave(ctx context.Context, leaveID int, reviewerID 
 		return fmt.Errorf("failed to retrieve leave: %w", err)
 	}
 	if leave.Status != domain.ReviewStatusReviewing {
-		return fmt.Errorf("leave is not in reviewing status")
+		return fmt.Errorf("%w, leave is not in reviewing status", common.ErrStatusConflict)
 	}
 
 	// check reviewer permission
 	if leave.CurrentReviewerID == nil || *leave.CurrentReviewerID != reviewerID {
-		return fmt.Errorf("reviewer does not have permission to review this leave")
+		return fmt.Errorf("%w, it's not waiting for this reviewer to review", common.ErrStatusConflict)
 	}
 
 	// update review comment & status
@@ -187,9 +187,8 @@ func (s *leaveService) ReviewLeave(ctx context.Context, leaveID int, reviewerID 
 }
 
 func (s *leaveService) GetLeaves(ctx context.Context, query domain.LeaveQuery) ([]domain.Leave, error) {
-	// TODO: tell it's 4xx or 5xx error
 	if query.EmployeeID == nil && query.CurrentReviewerID == nil {
-		return nil, fmt.Errorf("employee ID or current reviewer ID must be provided")
+		return nil, fmt.Errorf("%w, employee ID or current reviewer ID must be provided", common.ErrInvalidInput)
 	}
 
 	leaves, err := s.leaveRepo.GetLeaves(ctx, query)
