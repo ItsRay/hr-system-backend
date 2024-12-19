@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"hr-system/internal/common"
 	employee_repo "hr-system/internal/employees/repo"
 	"hr-system/internal/leaves/domain"
 )
@@ -36,7 +37,7 @@ func (r *leaveRepo) SeedLeaveData(ctx context.Context, employeeRepo employee_rep
 					ReviewerID: employees[0].ID,
 					Status:     domain.ReviewStatusRejected,
 					Comment:    "Not enough evidence",
-					ReviewedAt: getPtr(time.Now().AddDate(0, 0, -10)),
+					ReviewedAt: common.GetPtr(time.Now().AddDate(0, 0, -10)),
 				},
 			},
 		},
@@ -47,7 +48,7 @@ func (r *leaveRepo) SeedLeaveData(ctx context.Context, employeeRepo employee_rep
 			EndDate:           time.Now().AddDate(0, 0, 20), // 20 days later
 			Reason:            "Medical appointment",
 			Status:            domain.ReviewStatusReviewing,
-			CurrentReviewerID: getPtr(employees[2].ID),
+			CurrentReviewerID: common.GetPtr(employees[2].ID),
 			Reviews: []domain.LeaveReview{
 				{
 					ReviewerID: employees[2].ID,
@@ -65,8 +66,4 @@ func (r *leaveRepo) SeedLeaveData(ctx context.Context, employeeRepo employee_rep
 	}
 
 	return nil
-}
-
-func getPtr[T any](v T) *T {
-	return &v
 }

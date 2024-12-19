@@ -13,6 +13,8 @@ import (
 )
 
 type EmployeeRepo interface {
+	// TODO: find a better place to put this
+	SeedData(ctx context.Context) error
 	Create(ctx context.Context, employee *domain.Employee) error
 	GetEmployeeByID(ctx context.Context, id int) (domain.Employee, error)
 	GetEmployees(ctx context.Context, page, pageSize int) (employees []domain.Employee, totalCount int, err error)
@@ -46,19 +48,19 @@ type employeeRepo struct {
 	db *gorm.DB
 }
 
-func NewEmployeeRepo(ctx context.Context, db *gorm.DB) (EmployeeRepo, error) {
+func NewEmployeeRepo(db *gorm.DB) (EmployeeRepo, error) {
 	repo := &employeeRepo{
 		db: db,
 	}
 
-	if err := repo.ensureSchemaAndSeed(ctx); err != nil {
+	if err := repo.ensureSchema(); err != nil {
 		return nil, err
 	}
 
 	return repo, nil
 }
 
-func (r *employeeRepo) ensureSchemaAndSeed(ctx context.Context) error {
+func (r *employeeRepo) ensureSchema() error {
 	// AutoMigrate
 	if err := r.db.AutoMigrate(Employee{}); err != nil {
 		return err
@@ -67,12 +69,11 @@ func (r *employeeRepo) ensureSchemaAndSeed(ctx context.Context) error {
 		return err
 	}
 
-	// Seed Data
-	if err := r.SeedEmployees(ctx); err != nil {
-		return err
-	}
-
 	return nil
+}
+
+func (r *employeeRepo) SeedData(ctx context.Context) error {
+	return r.SeedEmployees(ctx)
 }
 
 func toRepoPosition(employeeID int, p *domain.Position) Position {

@@ -60,9 +60,12 @@ func main() {
 	r.Use(middleware.ContextMiddleware())
 
 	// API for employees
-	employeeRepo, err := employee_repo.NewEmployeeRepo(ctx, db)
+	employeeRepo, err := employee_repo.NewEmployeeRepo(db)
 	if err != nil {
 		logger.Fatalf("Failed to New EmployeeRepo, cause: %v", err)
+	}
+	if err = employeeRepo.SeedData(ctx); err != nil {
+		logger.Fatalf("Failed to seed data, cause: %v", err)
 	}
 
 	employeeService := employee_service.NewEmployeeService(logger, employeeRepo,
@@ -73,14 +76,17 @@ func main() {
 	r.GET("api/v1/employees", employeeHandler.GetEmployees)
 
 	// API for leaves
-	leaveRepo, err := leave_repo.NewLeaveRepo(ctx, db, employeeRepo)
+	leaveRepo, err := leave_repo.NewLeaveRepo(db)
 	if err != nil {
 		logger.Fatalf("Failed to New leaveRepo, cause: %v", err)
+	}
+	if err = leaveRepo.SeedData(ctx, employeeRepo); err != nil {
+		logger.Fatalf("Failed to seed data, cause: %v", err)
 	}
 	leaveService := leave_service.NewLeaveService(logger, leaveRepo, employeeRepo,
 		leave_cache.NewLeaveCache(commonCache, cachePrefixLeave))
 	leaveHandler := leave_handler.NewLeaveHandler(logger, leaveService)
-	// TODO: revoke leave
+	// TODO: add API for revoking leave
 	r.POST("api/v1/leaves", leaveHandler.CreateLeave)
 	r.POST("api/v1/leaves/:id/review", leaveHandler.ReviewLeave)
 	r.GET("api/v1/leaves", leaveHandler.GetLeaves)

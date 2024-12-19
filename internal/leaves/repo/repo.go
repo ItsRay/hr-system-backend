@@ -13,6 +13,8 @@ import (
 )
 
 type LeaveRepo interface {
+	// TODO: find a better way to seed data
+	SeedData(ctx context.Context, employeeRepo employee_repo.EmployeeRepo) error
 	CreateLeave(ctx context.Context, leave *domain.Leave) error
 	GetLeaveByID(ctx context.Context, id int) (domain.Leave, error)
 	GetLeaves(ctx context.Context, query domain.LeavesQuery) ([]domain.Leave, error)
@@ -23,29 +25,31 @@ type leaveRepo struct {
 	db *gorm.DB
 }
 
-func NewLeaveRepo(ctx context.Context, db *gorm.DB, employeeRepo employee_repo.EmployeeRepo) (LeaveRepo, error) {
+func (r *leaveRepo) SeedData(ctx context.Context, employeeRepo employee_repo.EmployeeRepo) error {
+	if err := r.SeedLeaveData(ctx, employeeRepo); err != nil {
+		return err
+	}
+	return nil
+}
+
+func NewLeaveRepo(db *gorm.DB) (LeaveRepo, error) {
 	repo := &leaveRepo{
 		db: db,
 	}
 
-	if err := repo.ensureSchemaAndSeedData(ctx, employeeRepo); err != nil {
+	if err := repo.ensureSchema(); err != nil {
 		return nil, err
 	}
 
 	return repo, nil
 }
 
-func (r *leaveRepo) ensureSchemaAndSeedData(ctx context.Context, employeeRepo employee_repo.EmployeeRepo) error {
-	// migrate
+func (r *leaveRepo) ensureSchema() error {
+	// AutoMigrate
 	if err := r.db.AutoMigrate(domain.Leave{}); err != nil {
 		return err
 	}
 	if err := r.db.AutoMigrate(domain.LeaveReview{}); err != nil {
-		return err
-	}
-
-	// seed
-	if err := r.SeedLeaveData(ctx, employeeRepo); err != nil {
 		return err
 	}
 	return nil
