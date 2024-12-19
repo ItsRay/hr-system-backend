@@ -178,7 +178,7 @@ func (r *employeeRepo) GetEmployees(ctx context.Context, page, pageSize int) ([]
 
 	db := r.db.WithContext(ctx)
 	db = preloadPositions(db)
-	err := db.Find(&employeeModels).Limit(pageSize).Offset(offset).Error
+	err := db.Limit(pageSize).Offset(offset).Find(&employeeModels).Error
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get employees: %w", err)
 	}
